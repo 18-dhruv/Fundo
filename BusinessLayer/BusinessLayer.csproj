@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <!-- Gives this class library ASP.NET Core types: options binding, HttpClientFactory, PasswordHasher -->
+        <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <!-- Brings the JWT token types at the same version the API uses to validate them -->
+        <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.0" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\ModelLayer\ModelLayer.csproj" />
+        <ProjectReference Include="..\RepositoryLayer\RepositoryLayer.csproj" />
+    </ItemGroup>
+
+</Project>

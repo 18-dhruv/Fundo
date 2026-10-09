@@ -1,0 +1,61 @@
+# Run everything:   docker compose up --build
+# Stop:             docker compose down        (add -v to also delete the database)
+#
+# Secrets come from a .env file next to this one (copy .env.example to .env).
+
+services:
+
+  postgres:
+    image: postgres:16
+    container_name: fundoo-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: FundooNotes
+    ports:
+      - "5433:5432"          # 5433 on your Mac so it doesn't clash with anything already on 5432
+    volumes:
+      - fundoo-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d FundooNotes"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  messageservice:
+    build:
+      context: .
+      dockerfile: MessageService/Dockerfile
+    container_name: fundoo-messageservice
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development      # keeps Swagger on
+      Smtp__Host: smtp.gmail.com
+      Smtp__Port: "587"
+      Smtp__Username: ${SMTP_USERNAME}
+      Smtp__Password: ${SMTP_PASSWORD}
+      Smtp__FromEmail: ${SMTP_USERNAME}
+      Smtp__FromName: Fundoo Notes
+    ports:
+      - "5222:8080"          # optional: lets you open its Swagger at http://localhost:5222/swagger
+
+  fundoonotes:
+    build:
+      context: .
+      dockerfile: FundoNotes/Dockerfile
+    container_name: fundoo-api
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__FundooConnection: Host=postgres;Port=5432;Database=FundooNotes;Username=postgres;Password=${POSTGRES_PASSWORD}
+      Jwt__Key: ${JWT_KEY}
+      MessageService__BaseUrl: http://messageservice:8080/   # container name, not localhost
+      Database__MigrateOnStartup: "true"
+    ports:
+      - "5180:8080"          # http://localhost:5180/swagger
+    depends_on:
+      postgres:
+        condition: service_healthy
+      messageservice:
+        condition: service_started
+
+volumes:
+  fundoo-pgdata:
