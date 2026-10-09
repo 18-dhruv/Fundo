@@ -37,7 +37,7 @@ namespace FundoNotes.Controllers
         [HttpPost("forgot-password")]
         public async Task<IActionResult> ForgotPassword(ForgotPasswordModel model)
         {
-            await _userBL.ForgotPassworxdAsync(model);
+            await _userBL.ForgotPasswordAsync(model);
             return Ok(ResponseModel<object>.SuccessWithoutData(
                 "If that email is registered, a reset token has been sent."));
         }
