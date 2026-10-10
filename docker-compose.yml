@@ -1,4 +1,5 @@
 # Run everything:   docker compose up --build
+# Open:             http://localhost/swagger   (through Nginx -> 2 API replicas)
 # Stop:             docker compose down        (add -v to also delete the database)
 #
 # Secrets come from a .env file next to this one (copy .env.example to .env).
@@ -10,6 +11,7 @@ services:
     container_name: fundoo-postgres
     environment:
       POSTGRES_USER: postgres
+      
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: FundooNotes
     ports:
@@ -35,27 +37,38 @@ services:
       Smtp__Password: ${SMTP_PASSWORD}
       Smtp__FromEmail: ${SMTP_USERNAME}
       Smtp__FromName: Fundoo Notes
-    ports:
-      - "5222:8080"          # optional: lets you open its Swagger at http://localhost:5222/swagger
+    # no "ports:" -> internal only. Only the API calls it, at http://messageservice:8080/
 
   fundoonotes:
     build:
       context: .
       dockerfile: FundoNotes/Dockerfile
-    container_name: fundoo-api
+    # no container_name: Docker can't give two replicas the same name
+    deploy:
+      replicas: 2            # 2 API instances behind Nginx (load balancing)
     environment:
       ASPNETCORE_ENVIRONMENT: Development
       ConnectionStrings__FundooConnection: Host=postgres;Port=5432;Database=FundooNotes;Username=postgres;Password=${POSTGRES_PASSWORD}
       Jwt__Key: ${JWT_KEY}
       MessageService__BaseUrl: http://messageservice:8080/   # container name, not localhost
       Database__MigrateOnStartup: "true"
-    ports:
-      - "5180:8080"          # http://localhost:5180/swagger
+      ASPNETCORE_FORWARDEDHEADERS_ENABLED: "true"   # trust X-Forwarded-For/Proto from Nginx (real client IP)
+    # no "ports:" -> only reachable through Nginx
     depends_on:
       postgres:
         condition: service_healthy
       messageservice:
         condition: service_started
+
+  nginx:
+    image: nginx:alpine
+    container_name: fundoo-nginx
+    ports:
+      - "80:80"              # http://localhost/swagger  (the only public entry point)
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - fundoonotes
 
 volumes:
   fundoo-pgdata:
